@@ -1,0 +1,22 @@
+{
+  "name": "wind-calendar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/main.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "bun-types": "^1.4.3",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2"
+  }
+}

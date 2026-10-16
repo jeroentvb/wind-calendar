@@ -1,0 +1,20 @@
+services:
+  wind-calendar:
+    build: .
+    image: wind-calendar:latest
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:3005:3005' # localhost only
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=16m
+    env_file:
+      - .env # WIND_CAL_TOKEN (and WIND_CAL_TOKEN_2 during rotation)
+    volumes:
+      - wind-data:/data
+
+volumes:
+  wind-data:

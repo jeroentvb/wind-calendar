@@ -1,0 +1,55 @@
+# Wind calendar configuration. Copy to config.yml and adjust.
+
+# Timezone used for times shown in event descriptions.
+timezone: Europe/Amsterdam
+
+# How often to fetch new forecasts.
+fetchIntervalMinutes: 60
+
+# Only create events up to this many days ahead (1-15).
+maxDaysAhead: 7
+
+# Global "good condition" settings. Every spot can override any of these.
+conditions:
+  minWindKn: 16 # every hour in a window needs at least this much wind
+  maxWindKn: null # optional upper limit, null = no limit
+  minDurationHours: 2 # minimum consecutive good hours
+  minTempC: 5
+  peakToleranceKn: 3 # hours less than this far below the peak belong to the peak block
+
+# Forecast models as ordered tiers (see "Models" in the README).
+# For each hour the first tier that has data is used; models within a tier are averaged by
+# weight. A lower tier only takes over once every model in the tiers above has run out of
+# forecast hours, so long-range models never affect short-range hours. Thunder in any model
+# of the tier in use rules an hour out.
+#
+# "- -" starts a new tier together with its first model; lines with a single "-", aligned
+# with the second dash, add more models to that same tier.
+models:
+  # Optional first tier: high-resolution regional models that cover your spots, e.g.
+  # - - { id: <regional model id>, weight: 1, name: <short name> }
+  #   - { id: <another regional model id>, weight: 1 }
+  #
+  # Global models, available everywhere:
+  - - { id: ecmwf_ifs, weight: 1, name: ECMWF } # ECMWF IFS 9 km, 15 days
+    - { id: icon_global, weight: 1, name: ICON } # ICON global, ~7.5 days
+    - { id: gfs_global, weight: 1, name: GFS } # GFS, 16 days
+
+spots:
+  - name: Scheveningen
+    lat: 52.11
+    lon: 4.27
+    weight: 10 # higher weight wins when spots are good at the same time
+    directions: [SW, WSW, W, WNW, NW]
+    conditions: # optional overrides
+      minWindKn: 18
+
+  - name: Brouwersdam
+    lat: 51.76
+    lon: 3.85
+    weight: 5
+    directions: [SW, WSW, W, WNW, NW, NNW, N]
+    # Optional: this spot's own model tiers, replacing the global models entirely.
+    # models:
+    #   - - { id: <regional model id>, weight: 1, name: <short name> }
+    #   - - { id: ecmwf_ifs, weight: 1, name: ECMWF }
