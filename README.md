@@ -2,6 +2,8 @@
 
 An ICS feed of planned surf sessions, based on Open-Meteo wind forecasts. Subscribe to it from the iPhone Calendar and sessions appear (and disappear) as the forecast changes.
 
+> Disclaimer: this project was built using AI
+
 ## How it decides
 
 For every spot, each hour is checked against the spot's conditions:
