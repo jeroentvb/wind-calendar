@@ -44,6 +44,8 @@ export function buildUrl(loc: Location, modelIds: readonly string[], forecastDay
       timezone: 'auto',
       forecast_days: String(forecastDays),
       models: modelIds.join(','),
+      // The default ('land') reads coastal spots from a land cell, where friction cuts the wind by several knots.
+      cell_selection: 'sea',
    });
    return `${BASE_URL}?${params}`;
 }

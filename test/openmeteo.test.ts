@@ -13,6 +13,11 @@ test('buildUrl requests knots, unix time and all models', () => {
    expect(url.searchParams.get('forecast_days')).toBe('8');
 });
 
+test('buildUrl prefers sea grid cells, since spots sit on the water', () => {
+   const url = new URL(buildUrl({ lat: 52.1, lon: 4.27 }, MULTI, 8));
+   expect(url.searchParams.get('cell_selection')).toBe('sea');
+});
+
 test('parses suffixed multi-model responses', () => {
    const fc = parseResponse(multi, MULTI);
    expect(fc.times).toHaveLength(96);
