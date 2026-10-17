@@ -1,6 +1,6 @@
-# Wind calendar
+# 📅 Wind calendar
 
-An ICS feed of planned surf sessions, based on Open-Meteo wind forecasts. Subscribe to it from the iPhone Calendar and sessions appear (and disappear) as the forecast changes.
+An ICS feed of planned surf sessions, based on Open-Meteo wind forecasts. Subscribe to it from any calendar that supports ics subscriptions and sessions appear (and disappear) as the forecast changes.
 
 > Disclaimer: this project was built using AI
 
