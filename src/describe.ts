@@ -2,7 +2,7 @@ import { toSector } from './sectors.ts';
 import type { CalendarEvent, Candidate } from './select.ts';
 
 export function eventTitle(c: Candidate): string {
-   return `🏄 ${c.spot.name} ${Math.round(c.avgWind)}-${Math.round(c.avgGust)}kn ${c.sector}`;
+   return `${c.outlook ? '🔮' : '🏄'} ${c.spot.name} ${Math.round(c.avgWind)}-${Math.round(c.avgGust)}kn ${c.sector}`;
 }
 
 function clock(epoch: number, timeZone: string): string {
@@ -28,6 +28,14 @@ const num = (v: number, width: number) => String(Math.round(v)).padStart(width);
 /** Plain-text description; iOS Calendar does not render HTML. */
 export function eventDescription(e: CalendarEvent, timeZone: string, updatedAt?: number): string {
    const lines: string[] = [];
+   if (e.outlook) {
+      lines.push('⚠️ Uncertain long-range forecast');
+      lines.push(
+         `Seen in ${e.outlook.models.join(', ')} (${e.outlook.models.length} of ${e.outlook.of} models). ` +
+            'Check again closer to the day.',
+      );
+      lines.push('');
+   }
    lines.push(`Peak ${clock(e.peakStart, timeZone)}–${clock(e.peakEnd, timeZone)}`);
    lines.push('');
    lines.push('   Time   Wind Gust Dir');

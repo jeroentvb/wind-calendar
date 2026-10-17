@@ -9,6 +9,10 @@ fetchIntervalMinutes: 60
 # Only create events up to this many days ahead (1-15).
 maxDaysAhead: 7
 
+# Extra days after maxDaysAhead with uncertain 🔮 events: a single model meeting the conditions
+# is enough there. maxDaysAhead + outlookDays can be at most 15; 0 turns the outlook off.
+outlookDays: 4
+
 # Global "good condition" settings. Every spot can override any of these.
 conditions:
   minWindKn: 16 # every hour in a window needs at least this much wind

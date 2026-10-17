@@ -75,6 +75,7 @@ export function renderCalendar(events: readonly CalendarEvent[], opts: RenderOpt
          `GEO:${lat};${lon}`,
          `X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-APPLE-RADIUS=200;X-TITLE=${paramValue(name)}:geo:${lat},${lon}`,
          'TRANSP:TRANSPARENT',
+         ...(e.outlook ? ['STATUS:TENTATIVE'] : []),
          'END:VEVENT',
       );
    }

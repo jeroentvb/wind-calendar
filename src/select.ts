@@ -18,6 +18,8 @@ export interface Candidate {
    avgWind: number;
    avgGust: number;
    sector: Sector;
+   /** Set on outlook candidates: display names of the models that show the window, out of `of` with data. */
+   outlook?: { models: string[]; of: number };
 }
 
 export interface CalendarEvent extends Candidate {

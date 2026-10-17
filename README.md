@@ -16,20 +16,23 @@ Consecutive good hours of at least `minDurationHours` form a **qualifying window
 
 Forecast values at HH:00 are treated as the hour HH:00–HH+1:00. Model tiers: each hour uses the first tier that has data, averaging its models by weight (direction as a vector mean). When a high-resolution model's horizon ends, the next tier takes over.
 
+**Outlook.** For `outlookDays` days after `maxDaysAhead`, models are not blended: every model is checked on its own, and one model meeting the conditions is enough. These events get a 🔮 instead of 🏄 in the title, are marked tentative, and their description warns that the forecast is uncertain and lists which models show the window (e.g. "Seen in GFS (1 of 2 models)"). When several models show overlapping windows at a spot, the event uses the strongest one. `maxDaysAhead + outlookDays` can be at most 15; without an explicit `outlookDays` the default shrinks to fit.
+
 ## Configuration
 
 Copy `config.example.yml` to `config.yml` and adjust it. The config is read and validated at startup: on invalid values or unknown keys (typos) the app refuses to start with a readable error. Restart the app after changing it; in Docker the config is baked into the image, so rebuild with `docker compose up -d --build`.
 
 ### General
 
-| Key                    | Default            | Description                                             |
-| ---------------------- | ------------------ | ------------------------------------------------------- |
-| `timezone`             | `Europe/Amsterdam` | IANA timezone for the times shown in event descriptions |
-| `fetchIntervalMinutes` | `60`               | How often forecasts are fetched (minimum 5)             |
-| `maxDaysAhead`         | `7`                | Only create events up to this many days ahead (1–15)    |
-| `conditions`           | –                  | Required. Global good-condition settings, see below     |
-| `models`               | –                  | Required. Forecast models in tiers, see below           |
-| `spots`                | –                  | Required. At least one spot, see below                  |
+| Key                    | Default            | Description                                                  |
+| ---------------------- | ------------------ | ------------------------------------------------------------ |
+| `timezone`             | `Europe/Amsterdam` | IANA timezone for the times shown in event descriptions      |
+| `fetchIntervalMinutes` | `60`               | How often forecasts are fetched (minimum 5)                  |
+| `maxDaysAhead`         | `7`                | Only create events up to this many days ahead (1–15)         |
+| `outlookDays`          | `4`                | Extra days with uncertain 🔮 events (see Outlook); `0` = off |
+| `conditions`           | –                  | Required. Global good-condition settings, see below          |
+| `models`               | –                  | Required. Forecast models in tiers, see below                |
+| `spots`                | –                  | Required. At least one spot, see below                       |
 
 ### Conditions
 

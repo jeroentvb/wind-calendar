@@ -57,6 +57,7 @@ const ConfigSchema = z
          }, 'unknown IANA timezone'),
       fetchIntervalMinutes: z.int().min(5).default(60),
       maxDaysAhead: z.int().min(1).max(15).default(7),
+      outlookDays: z.int().min(0).max(14).optional(),
       conditions: GlobalConditions,
       models: Tiers,
       spots: z.array(Spot).min(1),
@@ -81,6 +82,8 @@ export interface Config {
    timezone: string;
    fetchIntervalMinutes: number;
    maxDaysAhead: number;
+   /** Extra days after maxDaysAhead where a single model is enough for an (uncertain) event. */
+   outlookDays: number;
    models: Tier[];
    spots: SpotConfig[];
 }
@@ -97,6 +100,13 @@ export function parseConfig(text: string): Config {
    const result = ConfigSchema.safeParse(raw);
    if (!result.success) throw new ConfigError(`Invalid config:\n${z.prettifyError(result.error)}`);
    const c = result.data;
+
+   // Open-Meteo forecasts at most 16 days, and the fetch asks for one day beyond the last one shown.
+   const maxTotalDays = 15;
+   if (c.outlookDays !== undefined && c.maxDaysAhead + c.outlookDays > maxTotalDays) {
+      throw new ConfigError(`Invalid config: maxDaysAhead + outlookDays must be at most ${maxTotalDays}`);
+   }
+   const outlookDays = c.outlookDays ?? Math.min(4, maxTotalDays - c.maxDaysAhead);
 
    const spots = c.spots.map((s): SpotConfig => {
       const conditions: Conditions = { ...c.conditions, ...s.conditions };
@@ -118,6 +128,7 @@ export function parseConfig(text: string): Config {
       timezone: c.timezone,
       fetchIntervalMinutes: c.fetchIntervalMinutes,
       maxDaysAhead: c.maxDaysAhead,
+      outlookDays,
       models: c.models,
       spots,
    };

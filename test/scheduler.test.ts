@@ -112,9 +112,24 @@ test("stored data is ignored when the spot's location or models change", async (
 });
 
 test('events beyond maxDaysAhead are left out', async () => {
-   const feed = new Feed(config, { ...base, now: () => DAY0 - 3 * 86400, fetchImpl: ok(body()) });
+   const cfg = { ...config, outlookDays: 0 };
+   const feed = new Feed(cfg, { ...base, now: () => DAY0 - 3 * 86400, fetchImpl: ok(body()) });
    await feed.refresh();
    expect(eventCount(feed.ics)).toBe(0);
+});
+
+test('days after maxDaysAhead get uncertain outlook events', async () => {
+   let days: string | null = null as string | null;
+   const fetchImpl = (async (url: string) => {
+      days = new URL(url).searchParams.get('forecast_days');
+      return Response.json(body());
+   }) as unknown as typeof fetch;
+   const feed = new Feed(config, { ...base, now: () => DAY0 - 3 * 86400, fetchImpl });
+   await feed.refresh();
+   expect(days).toBe(String(3 + 4 + 1));
+   expect(eventCount(feed.ics)).toBe(1);
+   expect(feed.ics.replace(/\r\n /g, '')).toContain('SUMMARY:🔮 A 20-26kn W');
+   expect(feed.ics).toContain('STATUS:TENTATIVE');
 });
 
 test('each spot fetches and blends its own models', async () => {

@@ -48,9 +48,17 @@ test('defaults', () => {
    const c = parseConfig(minimal());
    expect(c.fetchIntervalMinutes).toBe(60);
    expect(c.maxDaysAhead).toBe(7);
+   expect(c.outlookDays).toBe(4);
    expect(c.timezone).toBe('Europe/Amsterdam');
    expect(c.spots[0]!.conditions.peakToleranceKn).toBe(3);
    expect(c.spots[0]!.weight).toBe(1);
+});
+
+test('outlookDays defaults to what still fits in the forecast range', () => {
+   expect(parseConfig(minimal('maxDaysAhead: 13')).outlookDays).toBe(2);
+   expect(parseConfig(minimal('maxDaysAhead: 15')).outlookDays).toBe(0);
+   expect(parseConfig(minimal('maxDaysAhead: 10\noutlookDays: 5')).outlookDays).toBe(5);
+   expect(() => parseConfig(minimal('maxDaysAhead: 10\noutlookDays: 6'))).toThrow(/maxDaysAhead \+ outlookDays/);
 });
 
 test('rejects invalid sectors', () => {

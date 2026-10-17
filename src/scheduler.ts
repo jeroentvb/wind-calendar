@@ -2,6 +2,7 @@ import { allModelIds, blend } from './blend.ts';
 import type { Config, SpotConfig } from './config.ts';
 import { renderCalendar } from './ics.ts';
 import { fetchForecast, type SpotForecast } from './openmeteo.ts';
+import { outlookCandidates } from './outlook.ts';
 import { candidatesForSpot, selectEvents, type Candidate } from './select.ts';
 import { loadState, saveState, type State } from './state.ts';
 
@@ -65,7 +66,7 @@ export class Feed {
    }
 
    private async doRefresh(): Promise<void> {
-      const days = Math.min(16, this.config.maxDaysAhead + 1);
+      const days = Math.min(16, this.config.maxDaysAhead + this.config.outlookDays + 1);
       let changed = false;
       for (const spot of this.config.spots) {
          try {
@@ -108,7 +109,9 @@ export class Feed {
    render(): string {
       const now = this.now();
       const cutoff = now + this.config.maxDaysAhead * DAY;
+      const outlookEnd = cutoff + this.config.outlookDays * DAY;
       const candidates: Candidate[] = [];
+      const outlook: Candidate[] = [];
       const updatedAt: Record<string, number> = {};
       for (const spot of this.config.spots) {
          const fc = this.forecastFor(spot);
@@ -116,7 +119,10 @@ export class Feed {
          updatedAt[spot.name] = Math.floor(fc.fetchedAt / 1000);
          const hours = blend(fc, spot.models).filter((h) => h.time + HOUR <= cutoff);
          candidates.push(...candidatesForSpot(spot, hours, fc.sun));
+         outlook.push(...outlookCandidates(spot, fc, cutoff, outlookEnd));
       }
-      return renderCalendar(selectEvents(candidates), { timezone: this.config.timezone, now, updatedAt });
+      // Selected separately so "Also good" on an outlook event only lists other outlook spots.
+      const events = [...selectEvents(candidates), ...selectEvents(outlook)];
+      return renderCalendar(events, { timezone: this.config.timezone, now, updatedAt });
    }
 }
