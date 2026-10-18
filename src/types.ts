@@ -40,6 +40,8 @@ export interface Member {
    dir: number;
    /** Thunderstorm weather code or high CAPE in this model. */
    thunder: boolean;
+   /** Configured with a `resolutionKm` of at most HIGH_RES_KM (see blend.ts). */
+   highRes: boolean;
 }
 
 /** One blended forecast hour. `time` is the slot start in epoch seconds (UTC); the slot lasts one hour. */

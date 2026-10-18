@@ -6,6 +6,8 @@ export interface ModelRef {
    weight: number;
    /** Display name for event descriptions; defaults to the id. */
    name?: string;
+   /** Grid spacing; also decides whether the model counts as high-resolution. */
+   resolutionKm?: number;
    /** Take this model's hours from its newest runs in the single-runs API (see runs.ts). */
    latestRuns?: boolean;
 }
@@ -14,6 +16,8 @@ const THUNDER_CODES = new Set([95, 96, 99]);
 const THUNDER_CAPE = 800; // J/kg
 /** Share of an hour's weight that must report thunder to rule the hour out. */
 const THUNDER_SHARE = 0.5;
+/** Models this fine resolve convection (showers, sea breeze) themselves: the usual meteorological cut-off. */
+export const HIGH_RES_KM = 4;
 
 export function allModelIds(models: readonly ModelRef[]): string[] {
    return [...new Set(models.map((m) => m.id))];
@@ -39,7 +43,8 @@ export function blend(fc: SpotForecast, models: readonly ModelRef[]): Hour[] {
          const code = s.weatherCode[i];
          const cape = s.cape[i];
          const thunder = (code != null && THUNDER_CODES.has(code)) || (cape != null && cape >= THUNDER_CAPE);
-         return [{ name: ref.name ?? ref.id, weight: ref.weight, wind, gust, dir, temp, thunder }];
+         const highRes = ref.resolutionKm !== undefined && ref.resolutionKm <= HIGH_RES_KM;
+         return [{ name: ref.name ?? ref.id, weight: ref.weight, wind, gust, dir, temp, thunder, highRes }];
       });
       if (members.length === 0) return;
 
@@ -58,7 +63,14 @@ export function blend(fc: SpotForecast, models: readonly ModelRef[]): Hour[] {
          dir,
          temp: mean((m) => m.temp),
          thunder: mean((m) => (m.thunder ? 1 : 0)) >= THUNDER_SHARE,
-         members: members.map(({ name, weight, wind, dir, thunder }): Member => ({ name, weight, wind, dir, thunder })),
+         members: members.map(({ name, weight, wind, dir, thunder, highRes }): Member => ({
+            name,
+            weight,
+            wind,
+            dir,
+            thunder,
+            highRes,
+         })),
       });
    });
 

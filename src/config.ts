@@ -40,7 +40,7 @@ const Model = z
       message: 'set weight or resolutionKm',
       path: ['weight'],
    })
-   .transform(({ weight, resolutionKm, ...m }): ModelRef => ({ ...m, weight: weight ?? (10 / resolutionKm!) ** 2 }));
+   .transform((m): ModelRef => ({ ...m, weight: m.weight ?? (10 / m.resolutionKm!) ** 2 }));
 
 const Models = z
    .array(

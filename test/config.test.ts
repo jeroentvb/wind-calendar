@@ -103,7 +103,7 @@ test('spot models replace the global models; spots without them use the global o
    );
    expect(c.spots[0]!.models).toEqual([{ id: 'ecmwf_ifs025', weight: 1 }]);
    expect(c.spots[1]!.models).toEqual([
-      { id: 'icon_d2', weight: 25 },
+      { id: 'icon_d2', weight: 25, resolutionKm: 2 },
       { id: 'gfs_global', weight: 0.5 },
    ]);
 });
@@ -128,7 +128,7 @@ test('a model weight comes from its resolution unless set explicitly', () => {
       ),
    );
    expect(c.models.map((m) => +m.weight.toFixed(4))).toEqual([25, 1, 0.16, 5]);
-   expect(c.models[0]).toEqual({ id: 'a', weight: 25 });
+   expect(c.models[0]).toEqual({ id: 'a', weight: 25, resolutionKm: 2 });
 });
 
 test('a model needs a weight or a resolution', () => {

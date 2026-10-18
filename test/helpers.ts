@@ -33,7 +33,7 @@ export function hours(winds: number[], start = T0, patch: (i: number) => Partial
       dir: 270,
       temp: 15,
       thunder: false,
-      members: [{ name: 'test_model', weight: 1, wind, dir: 270, thunder: false }],
+      members: [{ name: 'test_model', weight: 1, wind, dir: 270, thunder: false, highRes: true }],
       ...patch(i),
    }));
 }

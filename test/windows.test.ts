@@ -25,7 +25,7 @@ function hours(winds: number[], patch: (i: number) => Partial<Hour> = () => ({})
       dir: 250,
       temp: 15,
       thunder: false,
-      members: [{ name: 'test_model', weight: 1, wind, dir: 250, thunder: false }],
+      members: [{ name: 'test_model', weight: 1, wind, dir: 250, thunder: false, highRes: true }],
       ...patch(i),
    }));
 }

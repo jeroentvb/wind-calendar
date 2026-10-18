@@ -59,6 +59,17 @@ describe('text', () => {
       expect(eventTitle(a!)).toBe('🏄 Scheveningen 26-34kn W');
    });
 
+   test('title shows 💨 when no high-resolution model covers the peak', () => {
+      const coarse = (i: number) => ({
+         members: [
+            { name: 'ECMWF', weight: 1, wind: [22, 26, 26, 26, 23, 23][i]!, dir: 270, thunder: false, highRes: false },
+         ],
+      });
+      const [c] = candidatesForSpot(spot('Scheveningen', 10), hours([22, 26, 26, 26, 23, 23], T0, coarse), allDay);
+      expect(eventTitle(c!)).toBe('💨 Scheveningen 26-34kn W');
+      expect(eventTitle({ ...c!, outlook: { models: ['ECMWF'], of: 1 } })).toMatch(/^🔮/);
+   });
+
    test('description lists every window hour, marks peak and also-good spots', () => {
       const d = eventDescription(event!, 'Europe/Amsterdam', T0);
       const rows = d.split('\n').filter((l) => /\d\d:\d\d  /.test(l));
@@ -73,7 +84,7 @@ describe('text', () => {
    });
 
    test('models line lists every model used in the window', () => {
-      const member = (name: string) => ({ name, weight: 1, wind: 20, dir: 270, thunder: false });
+      const member = (name: string) => ({ name, weight: 1, wind: 20, dir: 270, thunder: false, highRes: true });
       const hs = hours([20, 20, 20], T0, (i) => ({
          members: i < 2 ? [member('icon_d2'), member('harmonie')] : [member('ecmwf_ifs')],
       }));
@@ -86,7 +97,9 @@ describe('model disagreement and possible thunder', () => {
    type M = { name: string; weight: number; wind: number; dir: number; thunder?: boolean };
    // The middle hour gets the given members; the blended wind/dir are 20 kn W.
    const withMiddle = (ms: M[]) =>
-      hours([20, 20, 20], T0, (i) => (i === 1 ? { members: ms.map((m) => ({ thunder: false, ...m })) } : {}));
+      hours([20, 20, 20], T0, (i) =>
+         i === 1 ? { members: ms.map((m) => ({ thunder: false, highRes: true, ...m })) } : {},
+      );
    const describeOne = (s: ReturnType<typeof spot>, ms: M[]) => {
       const [c] = candidatesForSpot(s, withMiddle(ms), allDay);
       return { c: c!, d: eventDescription({ ...c!, alsoGood: [] }, 'UTC') };

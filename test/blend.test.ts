@@ -51,8 +51,8 @@ test('records each model with its name (falling back to the id), weight, wind an
       { id: 'b', weight: 1 },
    ]);
    expect(hours[0]!.members).toEqual([
-      { name: 'Model A', weight: 10, wind: 20, dir: 180, thunder: false },
-      { name: 'b', weight: 1, wind: 22, dir: 270, thunder: false },
+      { name: 'Model A', weight: 10, wind: 20, dir: 180, thunder: false, highRes: false },
+      { name: 'b', weight: 1, wind: 22, dir: 270, thunder: false, highRes: false },
    ]);
 });
 
@@ -90,4 +90,16 @@ test('thunder rules an hour out from half of the weight; less only flags the mod
    );
    expect(hours.map((h) => h.thunder)).toEqual([false, true, false]);
    expect(hours.map((h) => h.members.filter((m) => m.thunder).map((m) => m.name))).toEqual([['lo'], ['hi'], []]);
+});
+
+test('models with a resolution of at most 4 km count as high-resolution', () => {
+   const hours = blend(
+      fc({ a: series(1, { wind: [20] }), b: series(1, { wind: [20] }), c: series(1, { wind: [20] }) }, 1),
+      [
+         { id: 'a', weight: 1, resolutionKm: 2 },
+         { id: 'b', weight: 1, resolutionKm: 9 },
+         { id: 'c', weight: 1 },
+      ],
+   );
+   expect(hours[0]!.members.map((m) => m.highRes)).toEqual([true, false, false]);
 });

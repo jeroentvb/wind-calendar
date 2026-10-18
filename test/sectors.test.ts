@@ -20,7 +20,14 @@ test('angle between two directions takes the short way round', () => {
    expect(angleBetween(90, 450)).toBe(0);
 });
 
-const m = (weight: number, wind: number, dir: number): Member => ({ name: 'm', weight, wind, dir, thunder: false });
+const m = (weight: number, wind: number, dir: number): Member => ({
+   name: 'm',
+   weight,
+   wind,
+   dir,
+   thunder: false,
+   highRes: false,
+});
 
 test('direction spread is the weighted mean deviation from the blended direction', () => {
    expect(directionSpread([m(1, 20, 180), m(1, 20, 240)], 210)).toBe(30);
