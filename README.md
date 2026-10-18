@@ -73,7 +73,7 @@ models:
 | `name`         | the id  | Display name in the event description                                       |
 | `latestRuns`   | `false` | Use the model's newest runs, see "Newest model runs" below                  |
 
-Choosing models: add high-resolution regional models that cover your spots, plus global models for the longer range. A model returns no data for locations outside its domain, so check coverage for each spot. The [Open-Meteo docs](https://open-meteo.com/en/docs) list all models with their region, resolution and forecast length. Not every model provides gusts, weather codes or CAPE; a model without gusts is skipped for the hours it lacks them.
+Choosing models: add high-resolution regional models that cover your spots, plus global models for the longer range. A model returns no data for locations outside its domain, so check coverage for each spot. The [Open-Meteo docs](https://open-meteo.com/en/docs) list all models with their region, resolution and forecast length. Not every model provides gusts, weather codes or CAPE; a model without gusts is skipped for the hours it lacks them. A model's gust may not drop below its mean wind: such hours are treated as broken data and skipped the same way.
 
 #### Newest model runs
 

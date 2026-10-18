@@ -82,7 +82,7 @@ function pick(block: Record<string, unknown>, name: string, model: string, singl
 
 function modelSeries(hourly: Record<string, unknown>, id: string, single: boolean, length: number): ModelSeries {
    const get = (name: string) => pick(hourly, name, id, single, length);
-   return {
+   const series: ModelSeries = {
       wind: get('wind_speed_10m'),
       gust: get('wind_gusts_10m'),
       dir: get('wind_direction_10m'),
@@ -90,6 +90,16 @@ function modelSeries(hourly: Record<string, unknown>, id: string, single: boolea
       weatherCode: get('weather_code'),
       cape: get('cape'),
    };
+   // A model's gust may not drop below its mean wind; such hours are broken data (GFS once gave 23.6 kn
+   // wind with 10.5 kn gusts). Leaving the wind out drops the model from those hours, as if it had no data.
+   series.wind.forEach((wind, i) => {
+      const gust = series.gust[i];
+      if (wind != null && gust != null && gust < wind) {
+         series.wind[i] = null;
+         series.gust[i] = null;
+      }
+   });
+   return series;
 }
 
 export function parseResponse(json: unknown, modelIds: readonly string[], fetchedAt = Date.now()): SpotForecast {
