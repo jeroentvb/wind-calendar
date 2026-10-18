@@ -72,38 +72,81 @@ describe('text', () => {
       expect(d).not.toMatch(/<[a-z]/i);
    });
 
-   test('models line lists every model used in the window, across tiers', () => {
-      const hs = hours([20, 20, 20], T0, (i) => ({ models: i < 2 ? ['icon_d2', 'harmonie'] : ['ecmwf_ifs'] }));
+   test('models line lists every model used in the window', () => {
+      const member = (name: string) => ({ name, weight: 1, wind: 20, dir: 270, thunder: false });
+      const hs = hours([20, 20, 20], T0, (i) => ({
+         members: i < 2 ? [member('icon_d2'), member('harmonie')] : [member('ecmwf_ifs')],
+      }));
       const [e] = selectEvents(candidatesForSpot(spot('A', 1), hs, allDay));
       expect(eventDescription(e!, 'UTC')).toContain('Models: icon_d2, harmonie, ecmwf_ifs');
    });
 });
 
-describe('direction disagreement', () => {
-   const twoTiers = spot('A', 1, { models: [[{ id: 'a', weight: 1 }], [{ id: 'b', weight: 1 }]] });
-   const split = (dirs: number[], tier: number) =>
-      hours([20, 20, 20], T0, (i) => ({ models: ['ICON-EU', 'ARPEGE'], dirs: i === 1 ? dirs : [270, 270], tier }));
+describe('model disagreement and possible thunder', () => {
+   type M = { name: string; weight: number; wind: number; dir: number; thunder?: boolean };
+   // The middle hour gets the given members; the blended wind/dir are 20 kn W.
+   const withMiddle = (ms: M[]) =>
+      hours([20, 20, 20], T0, (i) => (i === 1 ? { members: ms.map((m) => ({ thunder: false, ...m })) } : {}));
+   const describeOne = (s: ReturnType<typeof spot>, ms: M[]) => {
+      const [c] = candidatesForSpot(s, withMiddle(ms), allDay);
+      return { c: c!, d: eventDescription({ ...c!, alsoGood: [] }, 'UTC') };
+   };
+   const a = spot('A', 1);
 
-   test('flags hours where models of a short or medium range tier are too far apart', () => {
-      const [c] = candidatesForSpot(twoTiers, split([180, 240], 0), allDay);
-      expect(c!.directionSplit.map((h) => h.time)).toEqual([T0 + H]);
-      const d = eventDescription({ ...c!, alsoGood: [] }, 'UTC');
-      expect(d).toContain('⚠️ Models disagree on wind direction (more than 45° apart)');
-      expect(d).toContain('09:00 ICON-EU S, ARPEGE WSW');
+   test('flags direction disagreement and lists each weighty model', () => {
+      const { c, d } = describeOne(a, [
+         { name: 'HARM-NL', weight: 1, wind: 20, dir: 220 },
+         { name: 'ICON', weight: 1, wind: 20, dir: 320 },
+         { name: 'GFS', weight: 0.01, wind: 20, dir: 90 },
+      ]);
+      expect(c.directionSplit.map((h) => h.time)).toEqual([T0 + H]);
+      expect(d).toContain('⚠️ Models disagree on wind direction\n09:00 HARM-NL SW, ICON NW\n');
    });
 
-   test('a spread at the tolerance is not flagged', () => {
-      expect(candidatesForSpot(twoTiers, split([225, 270], 0), allDay)[0]!.directionSplit).toEqual([]);
+   test('a low-weight outlier does not count as disagreement', () => {
+      const { c } = describeOne(a, [
+         { name: 'HARM-NL', weight: 100, wind: 20, dir: 270 },
+         { name: 'GFS', weight: 1, wind: 40, dir: 90 },
+      ]);
+      expect(c.directionSplit).toEqual([]);
+      expect(c.windSplit).toEqual([]);
    });
 
-   test('the last (long range) tier is never flagged', () => {
-      const [c] = candidatesForSpot(twoTiers, split([180, 240], 1), allDay);
-      expect(c!.directionSplit).toEqual([]);
-      expect(eventDescription({ ...c!, alsoGood: [] }, 'UTC')).not.toContain('disagree');
+   test('flags wind speed disagreement with each model speed', () => {
+      const { c, d } = describeOne(a, [
+         { name: 'ICON', weight: 1, wind: 22, dir: 270 },
+         { name: 'ECMWF', weight: 1, wind: 16, dir: 270 },
+         { name: 'GFS', weight: 1, wind: 32, dir: 270 },
+      ]);
+      expect(c.windSplit.map((h) => h.time)).toEqual([T0 + H]);
+      expect(d).toContain('⚠️ Models disagree on wind speed\n09:00 ICON 22, ECMWF 16, GFS 32\n');
    });
 
-   test('the tolerance comes from the spot conditions', () => {
-      const loose = { ...twoTiers, conditions: { ...twoTiers.conditions, directionSpreadDeg: 90 } };
-      expect(candidatesForSpot(loose, split([180, 240], 0), allDay)[0]!.directionSplit).toEqual([]);
+   test('tolerances come from the spot conditions', () => {
+      const loose = spot('A', 1, { conditions: { ...a.conditions, windSpreadKn: 10 } });
+      const { c } = describeOne(loose, [
+         { name: 'ICON', weight: 1, wind: 22, dir: 270 },
+         { name: 'ECMWF', weight: 1, wind: 16, dir: 270 },
+         { name: 'GFS', weight: 1, wind: 32, dir: 270 },
+      ]);
+      expect(c.windSplit).toEqual([]);
+   });
+
+   test('names the models that report thunder when too few to rule the hour out', () => {
+      const { c, d } = describeOne(a, [
+         { name: 'HARM-NL', weight: 100, wind: 20, dir: 270 },
+         { name: 'GFS', weight: 1, wind: 20, dir: 270, thunder: true },
+      ]);
+      expect(c.possibleThunder.map((h) => h.time)).toEqual([T0 + H]);
+      expect(d).toContain('⛈️ Possible thunder\n09:00 GFS\n');
+   });
+
+   test('agreeing models give no warnings', () => {
+      const { d } = describeOne(a, [
+         { name: 'HARM-NL', weight: 1, wind: 21, dir: 265 },
+         { name: 'ICON', weight: 1, wind: 19, dir: 275 },
+      ]);
+      expect(d).not.toContain('⚠️');
+      expect(d).not.toContain('⛈️');
    });
 });

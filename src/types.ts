@@ -25,8 +25,21 @@ export interface Conditions {
    minDurationHours: number;
    minTempC: number;
    peakToleranceKn: number;
-   /** Models further apart than this (degrees) are flagged as disagreeing on direction. */
+   /** Weighted mean deviation (degrees) from the blended direction above which models disagree. */
    directionSpreadDeg: number;
+   /** Weighted mean deviation (knots) from the blended wind above which models disagree. */
+   windSpreadKn: number;
+}
+
+/** One model's contribution to a blended hour. */
+export interface Member {
+   /** Display name, or the id when the model has no name. */
+   name: string;
+   weight: number;
+   wind: number;
+   dir: number;
+   /** Thunderstorm weather code or high CAPE in this model. */
+   thunder: boolean;
 }
 
 /** One blended forecast hour. `time` is the slot start in epoch seconds (UTC); the slot lasts one hour. */
@@ -36,13 +49,10 @@ export interface Hour {
    gust: number;
    dir: number;
    temp: number;
+   /** Ruled out: models holding at least half of the hour's weight report thunder. */
    thunder: boolean;
-   /** Display names (or ids) of the models averaged for this hour, in config order. */
-   models: string[];
-   /** Each model's own direction, in the same order as `models`. */
-   dirs: number[];
-   /** Index of the tier these models come from. */
-   tier: number;
+   /** The models with data for this hour, in config order. */
+   members: Member[];
 }
 
 /** Daylight interval in epoch seconds. */

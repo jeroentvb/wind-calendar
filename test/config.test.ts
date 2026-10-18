@@ -8,7 +8,7 @@ const example = await Bun.file(new URL('../config.example.yml', import.meta.url)
 
 const minimal = (extra = '', spot = '') => `
 conditions: { minWindKn: 15, minDurationHours: 2, minTempC: 5 }
-models: [[{ id: ecmwf_ifs025 }]]
+models: [{ id: ecmwf_ifs025, weight: 1 }]
 spots:
   - { name: A, lat: 52, lon: 4, directions: [W]${spot} }
 ${extra}`;
@@ -16,20 +16,23 @@ ${extra}`;
 test('example config loads', () => {
    const c = parseConfig(example);
    expect(c.spots.map((s) => s.name)).toEqual(['Scheveningen', 'Brouwersdam']);
-   expect(c.models.map((tier) => tier.map((m) => m.id))).toEqual([['ecmwf_ifs', 'icon_global', 'gfs_global']]);
+   expect(c.models.map((m) => m.id)).toEqual(['ecmwf_ifs', 'icon_global', 'gfs_global']);
 });
 
 test('model name is optional', () => {
    const c = parseConfig(
-      minimal().replace('{ id: ecmwf_ifs025 }', '{ id: ecmwf_ifs025, name: ECMWF }, { id: gfs_global }'),
+      minimal().replace(
+         '{ id: ecmwf_ifs025, weight: 1 }',
+         '{ id: ecmwf_ifs025, weight: 1, name: ECMWF }, { id: gfs_global, weight: 1 }',
+      ),
    );
-   expect(c.models[0]).toEqual([
+   expect(c.models).toEqual([
       { id: 'ecmwf_ifs025', weight: 1, name: 'ECMWF' },
       { id: 'gfs_global', weight: 1 },
    ]);
-   expect(() => parseConfig(minimal().replace('{ id: ecmwf_ifs025 }', "{ id: ecmwf_ifs025, name: '' }"))).toThrow(
-      /name/,
-   );
+   expect(() =>
+      parseConfig(minimal().replace('{ id: ecmwf_ifs025, weight: 1 }', "{ id: ecmwf_ifs025, weight: 1, name: '' }")),
+   ).toThrow(/name/);
 });
 
 test('spot overrides replace global values, rest falls through', () => {
@@ -40,7 +43,8 @@ test('spot overrides replace global values, rest falls through', () => {
       minDurationHours: 2,
       minTempC: 5,
       peakToleranceKn: 3,
-      directionSpreadDeg: 45,
+      directionSpreadDeg: 25,
+      windSpreadKn: 4,
    });
    expect(c.spots[1]!.conditions.minWindKn).toBe(16);
 });
@@ -93,10 +97,15 @@ test('rejects invalid YAML', () => {
 
 test('spot models replace the global models; spots without them use the global ones', () => {
    const c = parseConfig(
-      minimal('  - { name: B, lat: 1, lon: 1, directions: [N], models: [[{ id: icon_d2 }], [{ id: gfs_global }]] }'),
+      minimal(
+         '  - { name: B, lat: 1, lon: 1, directions: [N], models: [{ id: icon_d2, resolutionKm: 2 }, { id: gfs_global, weight: 0.5 }] }',
+      ),
    );
-   expect(c.spots[0]!.models).toEqual([[{ id: 'ecmwf_ifs025', weight: 1 }]]);
-   expect(c.spots[1]!.models).toEqual([[{ id: 'icon_d2', weight: 1 }], [{ id: 'gfs_global', weight: 1 }]]);
+   expect(c.spots[0]!.models).toEqual([{ id: 'ecmwf_ifs025', weight: 1 }]);
+   expect(c.spots[1]!.models).toEqual([
+      { id: 'icon_d2', weight: 25 },
+      { id: 'gfs_global', weight: 0.5 },
+   ]);
 });
 
 test('rejects an empty spot models list', () => {
@@ -109,4 +118,45 @@ test('loadConfig explains a missing file or a directory', async () => {
    await expect(loadConfig(join(dir, 'config.yml'))).rejects.toThrow(/is a directory/);
    await expect(loadConfig(join(dir, 'missing.yml'))).rejects.toThrow(/not found/);
    await rm(dir, { recursive: true });
+});
+
+test('a model weight comes from its resolution unless set explicitly', () => {
+   const c = parseConfig(
+      minimal().replace(
+         '[{ id: ecmwf_ifs025, weight: 1 }]',
+         '[{ id: a, resolutionKm: 2 }, { id: b, resolutionKm: 10 }, { id: c, resolutionKm: 25 }, { id: d, resolutionKm: 2, weight: 5 }]',
+      ),
+   );
+   expect(c.models.map((m) => +m.weight.toFixed(4))).toEqual([25, 1, 0.16, 5]);
+   expect(c.models[0]).toEqual({ id: 'a', weight: 25 });
+});
+
+test('a model needs a weight or a resolution', () => {
+   expect(() => parseConfig(minimal().replace('{ id: ecmwf_ifs025, weight: 1 }', '{ id: ecmwf_ifs025 }'))).toThrow(
+      /weight or resolutionKm/,
+   );
+});
+
+test('the old tier format fails with a pointer to weights', () => {
+   expect(() =>
+      parseConfig(minimal().replace('[{ id: ecmwf_ifs025, weight: 1 }]', '[[{ id: ecmwf_ifs025, weight: 1 }]]')),
+   ).toThrow(/tiers were removed/);
+});
+
+test('latestRuns is an optional per-model flag', () => {
+   const c = parseConfig(
+      minimal().replace(
+         '[{ id: ecmwf_ifs025, weight: 1 }]',
+         '[{ id: icon_eu, weight: 1, latestRuns: true }, { id: gfs_global, weight: 1 }]',
+      ),
+   );
+   expect(c.models.map((m) => m.latestRuns)).toEqual([true, undefined]);
+   expect(() =>
+      parseConfig(
+         minimal().replace(
+            '{ id: ecmwf_ifs025, weight: 1 }',
+            '{ id: ecmwf_ifs025, weight: 1, latestRuns: yes please }',
+         ),
+      ),
+   ).toThrow(/latestRuns/);
 });

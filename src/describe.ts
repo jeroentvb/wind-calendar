@@ -1,5 +1,6 @@
 import { toSector } from './sectors.ts';
 import type { CalendarEvent, Candidate } from './select.ts';
+import type { Hour, Member } from './types.ts';
 
 export function eventTitle(c: Candidate): string {
    return `${c.outlook ? '🔮' : '🏄'} ${c.spot.name} ${Math.round(c.avgWind)}-${Math.round(c.avgGust)}kn ${c.sector}`;
@@ -23,6 +24,9 @@ function dateTime(epoch: number, timeZone: string): string {
    }).format(epoch * 1000);
 }
 
+/** Disagreement lines leave out models with less of an hour's weight than this. */
+const MIN_SHOWN_SHARE = 0.05;
+
 const num = (v: number, width: number) => String(Math.round(v)).padStart(width);
 
 /** Plain-text description; iOS Calendar does not render HTML. */
@@ -36,14 +40,30 @@ export function eventDescription(e: CalendarEvent, timeZone: string, updatedAt?:
       );
       lines.push('');
    }
-   if (e.directionSplit.length > 0) {
-      lines.push(`⚠️ Models disagree on wind direction (more than ${e.spot.conditions.directionSpreadDeg}° apart)`);
-      for (const h of e.directionSplit) {
-         const each = h.models.map((m, i) => `${m} ${toSector(h.dirs[i]!)}`).join(', ');
-         lines.push(`${clock(h.time, timeZone)} ${each}`);
+   const warn = (
+      title: string,
+      hours: readonly Hour[],
+      shows: (m: Member, share: number) => boolean,
+      each: (m: Member) => string,
+   ) => {
+      if (hours.length === 0) return;
+      lines.push(title);
+      for (const h of hours) {
+         const total = h.members.reduce((a, m) => a + m.weight, 0);
+         const shown = h.members.filter((m) => shows(m, m.weight / total));
+         lines.push(`${clock(h.time, timeZone)} ${shown.map(each).join(', ')}`);
       }
       lines.push('');
-   }
+   };
+   const weighty = (_: Member, share: number) => share >= MIN_SHOWN_SHARE;
+   warn('⚠️ Models disagree on wind direction', e.directionSplit, weighty, (m) => `${m.name} ${toSector(m.dir)}`);
+   warn('⚠️ Models disagree on wind speed', e.windSplit, weighty, (m) => `${m.name} ${Math.round(m.wind)}`);
+   warn(
+      '⛈️ Possible thunder',
+      e.possibleThunder,
+      (m) => m.thunder,
+      (m) => m.name,
+   );
    lines.push(`Peak ${clock(e.peakStart, timeZone)}–${clock(e.peakEnd, timeZone)}`);
    lines.push('');
    lines.push('   Time   Wind Gust Dir');
@@ -66,7 +86,7 @@ export function eventDescription(e: CalendarEvent, timeZone: string, updatedAt?:
    }
 
    lines.push('');
-   lines.push(`Models: ${[...new Set(e.window.flatMap((h) => h.models))].join(', ')}`);
+   lines.push(`Models: ${[...new Set(e.window.flatMap((h) => h.members.map((m) => m.name)))].join(', ')}`);
    if (updatedAt !== undefined) lines.push(`Forecast updated ${dateTime(updatedAt, timeZone)}`);
    lines.push('Weather data by Open-Meteo.com (CC BY 4.0)');
    return lines.join('\n');

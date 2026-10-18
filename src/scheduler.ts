@@ -3,6 +3,7 @@ import type { Config, SpotConfig } from './config.ts';
 import { renderCalendar } from './ics.ts';
 import { fetchForecast, type SpotForecast } from './openmeteo.ts';
 import { outlookCandidates } from './outlook.ts';
+import { RunCache } from './runs.ts';
 import { candidatesForSpot, selectEvents, type Candidate } from './select.ts';
 import { loadState, saveState, type State } from './state.ts';
 
@@ -29,6 +30,7 @@ export class Feed {
    private readonly now: () => number;
    private readonly sleep: (ms: number) => Promise<void>;
    private readonly log: (msg: string) => void;
+   private readonly runs: RunCache;
 
    constructor(
       private readonly config: Config,
@@ -37,6 +39,7 @@ export class Feed {
       this.now = opts.now ?? (() => Date.now() / 1000);
       this.sleep = opts.sleep ?? ((ms) => Bun.sleep(ms));
       this.log = opts.log ?? ((msg) => console.log(`${new Date().toISOString()} ${msg}`));
+      this.runs = new RunCache({ fetchImpl: opts.fetchImpl, log: this.log });
       this.ics = this.render();
    }
 
@@ -68,12 +71,13 @@ export class Feed {
    private async doRefresh(): Promise<void> {
       const days = Math.min(16, this.config.maxDaysAhead + this.config.outlookDays + 1);
       let changed = false;
+      await this.runs.refresh(this.config.spots, this.now());
       for (const spot of this.config.spots) {
          try {
             const forecast = await this.withRetry(() =>
                fetchForecast(spot, allModelIds(spot.models), days, this.opts.fetchImpl),
             );
-            this.state[spot.name] = { key: spotKey(spot), forecast };
+            this.state[spot.name] = { key: spotKey(spot), forecast: this.runs.apply(spot, forecast) };
             changed = true;
          } catch (err) {
             this.log(`fetch failed for ${spot.name}, keeping last-good data: ${(err as Error).message}`);

@@ -11,12 +11,12 @@ const HOUR = 3600;
  */
 export function outlookCandidates(spot: SpotConfig, fc: SpotForecast, from: number, to: number): Candidate[] {
    const refs = new Map<string, ModelRef>();
-   for (const ref of spot.models.flat()) if (!refs.has(ref.id)) refs.set(ref.id, ref);
+   for (const ref of spot.models) if (!refs.has(ref.id)) refs.set(ref.id, ref);
 
    let of = 0;
    const found: { label: string; order: number; candidate: Candidate }[] = [];
    [...refs.values()].forEach((ref, order) => {
-      const hours = blend(fc, [[ref]]).filter((h) => h.time >= from && h.time + HOUR <= to);
+      const hours = blend(fc, [ref]).filter((h) => h.time >= from && h.time + HOUR <= to);
       if (hours.length === 0) return;
       of++;
       const label = ref.name ?? ref.id;

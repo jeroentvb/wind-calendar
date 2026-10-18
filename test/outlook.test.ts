@@ -26,11 +26,9 @@ function fc(models: Record<string, ModelSeries>): SpotForecast {
 
 const s = spot('Scheveningen', 1, {
    models: [
-      [
-         { id: 'ecmwf', weight: 1, name: 'ECMWF' },
-         { id: 'gfs', weight: 1, name: 'GFS' },
-      ],
-      [{ id: 'icon', weight: 1, name: 'ICON' }],
+      { id: 'ecmwf', weight: 1, name: 'ECMWF' },
+      { id: 'gfs', weight: 1, name: 'GFS' },
+      { id: 'icon', weight: 1, name: 'ICON' },
    ],
 });
 const calm = new Array(N).fill(8);
@@ -50,6 +48,8 @@ test('one model is enough, even when the blend would not qualify', () => {
    expect(c!.windowStart).toBe(T0 + H);
    expect(c!.avgWind).toBe(20);
    expect(c!.outlook).toEqual({ models: ['GFS'], of: 2 });
+   // A single model never disagrees with itself.
+   expect([c!.directionSplit, c!.windSplit]).toEqual([[], []]);
 });
 
 test('overlapping windows from several models merge into the strongest one', () => {

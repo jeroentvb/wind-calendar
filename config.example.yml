@@ -20,25 +20,24 @@ conditions:
   minDurationHours: 2 # minimum consecutive good hours
   minTempC: 5
   peakToleranceKn: 3 # hours less than this far below the peak belong to the peak block
-  directionSpreadDeg: 45 # warn when models of a non-last tier point further apart than this
+  directionSpreadDeg: 25 # warn when models deviate this much (weighted average, degrees) from the blended direction
+  windSpreadKn: 4 # warn when models deviate this much (weighted average, knots) from the blended wind
 
-# Forecast models as ordered tiers (see "Models" in the README).
-# For each hour the first tier that has data is used; models within a tier are averaged by
-# weight. A lower tier only takes over once every model in the tiers above has run out of
-# forecast hours, so long-range models never affect short-range hours. Thunder in any model
-# of the tier in use rules an hour out.
-#
-# "- -" starts a new tier together with its first model; lines with a single "-", aligned
-# with the second dash, add more models to that same tier.
+# Forecast models, blended by weight for every hour (see "Models" in the README).
+# Every model with data takes part, so when a high-resolution model's horizon ends the others
+# carry on. Give each model a resolutionKm (its grid spacing, from the Open-Meteo docs) and its
+# weight becomes (10 / resolutionKm)², so a model with half the grid spacing counts 4x as much.
+# An explicit weight overrides that.
+# latestRuns: true also reads the model's newest runs from Open-Meteo's Single Runs API (see
+# "Newest model runs" in the README). So far only known to help icon_eu and icon_global.
 models:
-  # Optional first tier: high-resolution regional models that cover your spots, e.g.
-  # - - { id: <regional model id>, weight: 1, name: <short name> }
-  #   - { id: <another regional model id>, weight: 1 }
+  # High-resolution regional models that cover your spots, e.g.
+  # - { id: <regional model id>, name: <short name>, resolutionKm: 2 }
   #
   # Global models, available everywhere:
-  - - { id: ecmwf_ifs, weight: 1, name: ECMWF } # ECMWF IFS 9 km, 15 days
-    - { id: icon_global, weight: 1, name: ICON } # ICON global, ~7.5 days
-    - { id: gfs_global, weight: 1, name: GFS } # GFS, 16 days
+  - { id: ecmwf_ifs, name: ECMWF, resolutionKm: 9 } # ECMWF IFS, 15 days
+  - { id: icon_global, name: ICON, resolutionKm: 13 } # ICON global, ~7.5 days; consider latestRuns: true
+  - { id: gfs_global, name: GFS, resolutionKm: 13 } # GFS 0.11°, 16 days
 
 spots:
   - name: Scheveningen
@@ -54,7 +53,7 @@ spots:
     lon: 3.85
     weight: 5
     directions: [SW, WSW, W, WNW, NW, NNW, N]
-    # Optional: this spot's own model tiers, replacing the global models entirely.
+    # Optional: this spot's own models, replacing the global models entirely.
     # models:
-    #   - - { id: <regional model id>, weight: 1, name: <short name> }
-    #   - - { id: ecmwf_ifs, weight: 1, name: ECMWF }
+    #   - { id: <regional model id>, name: <short name>, resolutionKm: 2 }
+    #   - { id: ecmwf_ifs, name: ECMWF, resolutionKm: 9 }

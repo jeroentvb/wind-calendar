@@ -1,6 +1,7 @@
 import type { SunDay } from './types.ts';
 
 const BASE_URL = 'https://api.open-meteo.com/v1/forecast';
+const RUNS_URL = 'https://single-runs-api.open-meteo.com/v1/forecast';
 const HOURLY_VARS = [
    'wind_speed_10m',
    'wind_gusts_10m',
@@ -51,6 +52,25 @@ export function buildUrl(loc: Location, modelIds: readonly string[], forecastDay
 }
 
 /**
+ * Single-runs API: one model run (`run`, epoch seconds) for several locations at once; 16 days covers
+ * every model's horizon. A probe asks for the least data possible, just to learn whether the run exists.
+ */
+export function buildRunUrl(locs: readonly Location[], modelId: string, run: number, probe = false): string {
+   const params = new URLSearchParams({
+      latitude: locs.map((l) => l.lat).join(','),
+      longitude: locs.map((l) => l.lon).join(','),
+      hourly: probe ? 'wind_speed_10m' : HOURLY_VARS.join(','),
+      wind_speed_unit: 'kn',
+      timeformat: 'unixtime',
+      forecast_days: probe ? '1' : '16',
+      models: modelId,
+      run: new Date(run * 1000).toISOString().slice(0, 16),
+      cell_selection: 'sea',
+   });
+   return `${RUNS_URL}?${params}`;
+}
+
+/**
  * Open-Meteo suffixes every variable with the model id when several models are requested,
  * but returns plain names when only one model is requested.
  */
@@ -58,6 +78,18 @@ function pick(block: Record<string, unknown>, name: string, model: string, singl
    const raw = block[`${name}_${model}`] ?? (single ? block[name] : undefined);
    if (!Array.isArray(raw)) return new Array(length).fill(null);
    return raw.map((v) => (typeof v === 'number' && Number.isFinite(v) ? v : null));
+}
+
+function modelSeries(hourly: Record<string, unknown>, id: string, single: boolean, length: number): ModelSeries {
+   const get = (name: string) => pick(hourly, name, id, single, length);
+   return {
+      wind: get('wind_speed_10m'),
+      gust: get('wind_gusts_10m'),
+      dir: get('wind_direction_10m'),
+      temp: get('temperature_2m'),
+      weatherCode: get('weather_code'),
+      cape: get('cape'),
+   };
 }
 
 export function parseResponse(json: unknown, modelIds: readonly string[], fetchedAt = Date.now()): SpotForecast {
@@ -77,17 +109,7 @@ export function parseResponse(json: unknown, modelIds: readonly string[], fetche
    const times = hourly.time as number[];
    const single = modelIds.length === 1;
    const models: Record<string, ModelSeries> = {};
-   for (const id of modelIds) {
-      const get = (name: string) => pick(hourly, name, id, single, times.length);
-      models[id] = {
-         wind: get('wind_speed_10m'),
-         gust: get('wind_gusts_10m'),
-         dir: get('wind_direction_10m'),
-         temp: get('temperature_2m'),
-         weatherCode: get('weather_code'),
-         cape: get('cape'),
-      };
-   }
+   for (const id of modelIds) models[id] = modelSeries(hourly, id, single, times.length);
 
    // Sunrise/sunset differ by seconds between models; take the first model that has them.
    const dayCount = (daily.time as unknown[]).length;
@@ -116,4 +138,24 @@ export async function fetchForecast(
       throw new Error(`Open-Meteo HTTP ${res.status}${reason ? `: ${reason}` : ''}`);
    }
    return parseResponse(body, modelIds);
+}
+
+export interface RunSeries {
+   times: number[];
+   series: ModelSeries;
+}
+
+/** Parses a single-runs response for one model; one entry per requested location, in request order. */
+export function parseRunResponse(json: unknown, locationCount: number): RunSeries[] {
+   const blocks = (Array.isArray(json) ? json : [json]) as { hourly?: Record<string, unknown> }[];
+   if (blocks.length !== locationCount) {
+      throw new Error(`Open-Meteo returned ${blocks.length} locations, expected ${locationCount}`);
+   }
+   return blocks.map((b) => {
+      const hourly = b?.hourly;
+      if (!hourly || !Array.isArray(hourly.time)) throw new Error('Open-Meteo run response is missing hourly data');
+      const times = hourly.time as number[];
+      // With a single model Open-Meteo returns plain variable names.
+      return { times, series: modelSeries(hourly, '', true, times.length) };
+   });
 }

@@ -8,7 +8,7 @@ import { Feed } from '../src/scheduler.ts';
 const config = parseConfig(`
 conditions: { minWindKn: 15, minDurationHours: 2, minTempC: 5 }
 maxDaysAhead: 3
-models: [[{ id: ecmwf_ifs025 }]]
+models: [{ id: ecmwf_ifs025, weight: 1 }]
 spots:
   - { name: A, lat: 52, lon: 4, directions: [W] }
 `);
@@ -135,10 +135,10 @@ test('days after maxDaysAhead get uncertain outlook events', async () => {
 test('each spot fetches and blends its own models', async () => {
    const cfg = parseConfig(`
 conditions: { minWindKn: 15, minDurationHours: 2, minTempC: 5 }
-models: [[{ id: ecmwf_ifs }]]
+models: [{ id: ecmwf_ifs, weight: 1 }]
 spots:
   - { name: A, lat: 52, lon: 4, directions: [E] } # never qualifies, so B gets the event
-  - { name: B, lat: 36, lon: -5, directions: [W], models: [[{ id: gfs_global, name: GFS }]] }
+  - { name: B, lat: 36, lon: -5, directions: [W], models: [{ id: gfs_global, weight: 1, name: GFS }] }
 `);
    const requested: Record<string, string | null> = {};
    const fetchImpl = (async (url: string) => {
@@ -152,4 +152,36 @@ spots:
    const ics = feed.ics.replace(/\r\n /g, '');
    expect(ics).toContain('Models: GFS\\n');
    expect(ics).not.toContain('ecmwf_ifs');
+});
+
+test('models with latestRuns take their hours from the newest run in the single-runs API', async () => {
+   const cfg = parseConfig(`
+conditions: { minWindKn: 15, minDurationHours: 2, minTempC: 5 }
+maxDaysAhead: 3
+models: [{ id: icon_eu, weight: 1, latestRuns: true }]
+spots:
+  - { name: A, lat: 52, lon: 4, directions: [W] }
+`);
+   const run = DAY0 - 6 * 3600;
+   const fetchImpl = (async (input: string) => {
+      const u = new URL(input);
+      if (u.hostname === 'api.open-meteo.com') return Response.json(body());
+      if (u.searchParams.get('run') !== new Date(run * 1000).toISOString().slice(0, 16)) {
+         return Response.json({ error: true }, { status: 400 });
+      }
+      // The newer run has 20 kn all day instead of only 10:00-14:00.
+      const { hourly } = body();
+      const times = Array.from({ length: 31 }, (_, i) => run + i * 3600);
+      return Response.json({
+         hourly: Object.fromEntries(
+            Object.entries(hourly).map(([k, v]) => [
+               k,
+               k === 'time' ? times : times.map(() => (k.startsWith('wind_speed') ? 20 : v[12])),
+            ]),
+         ),
+      });
+   }) as unknown as typeof fetch;
+   const feed = new Feed(cfg, { ...base, fetchImpl });
+   await feed.refresh();
+   expect(feed.ics).toContain('DTSTART:20261017T060000Z');
 });

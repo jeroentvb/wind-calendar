@@ -17,9 +17,10 @@ export function spot(name: string, weight: number, overrides: Partial<SpotConfig
          minDurationHours: 2,
          minTempC: 5,
          peakToleranceKn: 3,
-         directionSpreadDeg: 45,
+         directionSpreadDeg: 25,
+         windSpreadKn: 4,
       },
-      models: [[{ id: 'test_model', weight: 1 }]],
+      models: [{ id: 'test_model', weight: 1 }],
       ...overrides,
    };
 }
@@ -32,9 +33,7 @@ export function hours(winds: number[], start = T0, patch: (i: number) => Partial
       dir: 270,
       temp: 15,
       thunder: false,
-      models: ['test_model'],
-      dirs: [270],
-      tier: 0,
+      members: [{ name: 'test_model', weight: 1, wind, dir: 270, thunder: false }],
       ...patch(i),
    }));
 }

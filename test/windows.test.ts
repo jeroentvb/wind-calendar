@@ -11,7 +11,8 @@ const cond: Conditions = {
    minDurationHours: 2,
    minTempC: 5,
    peakToleranceKn: 3,
-   directionSpreadDeg: 45,
+   directionSpreadDeg: 25,
+   windSpreadKn: 4,
 };
 const rules: SpotRules = { directions: ['SW', 'WSW', 'W'], conditions: cond };
 const sun: SunDay[] = [{ sunrise: T0 - 30 * 60, sunset: T0 + 12 * H }];
@@ -24,9 +25,7 @@ function hours(winds: number[], patch: (i: number) => Partial<Hour> = () => ({})
       dir: 250,
       temp: 15,
       thunder: false,
-      models: ['test_model'],
-      dirs: [250],
-      tier: 0,
+      members: [{ name: 'test_model', weight: 1, wind, dir: 250, thunder: false }],
       ...patch(i),
    }));
 }
