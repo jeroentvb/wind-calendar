@@ -25,6 +25,8 @@ export interface Conditions {
    minDurationHours: number;
    minTempC: number;
    peakToleranceKn: number;
+   /** Models further apart than this (degrees) are flagged as disagreeing on direction. */
+   directionSpreadDeg: number;
 }
 
 /** One blended forecast hour. `time` is the slot start in epoch seconds (UTC); the slot lasts one hour. */
@@ -37,6 +39,10 @@ export interface Hour {
    thunder: boolean;
    /** Display names (or ids) of the models averaged for this hour, in config order. */
    models: string[];
+   /** Each model's own direction, in the same order as `models`. */
+   dirs: number[];
+   /** Index of the tier these models come from. */
+   tier: number;
 }
 
 /** Daylight interval in epoch seconds. */

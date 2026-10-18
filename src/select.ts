@@ -1,5 +1,5 @@
 import type { SpotConfig } from './config.ts';
-import { toSector } from './sectors.ts';
+import { directionSpread, toSector } from './sectors.ts';
 import type { Hour, Sector } from './types.ts';
 import { peakBlock, qualifyingWindows } from './windows.ts';
 import type { SunDay } from './types.ts';
@@ -18,6 +18,11 @@ export interface Candidate {
    avgWind: number;
    avgGust: number;
    sector: Sector;
+   /**
+    * Window hours where the models of a short or medium range tier (any tier but the last) point
+    * more than `directionSpreadDeg` apart.
+    */
+   directionSplit: Hour[];
    /** Set on outlook candidates: display names of the models that show the window, out of `of` with data. */
    outlook?: { models: string[]; of: number };
 }
@@ -41,6 +46,7 @@ export function modalSector(hours: readonly Hour[]): Sector {
 const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
 export function candidatesForSpot(spot: SpotConfig, hours: readonly Hour[], sun: readonly SunDay[]): Candidate[] {
+   const lastTier = spot.models.length - 1;
    return qualifyingWindows(hours, spot, sun).map((window) => {
       const block = peakBlock(window, spot.conditions);
       const peak = window.slice(block.start, block.end);
@@ -55,6 +61,9 @@ export function candidatesForSpot(spot: SpotConfig, hours: readonly Hour[], sun:
          avgWind: avg(peak.map((h) => h.wind)),
          avgGust: avg(peak.map((h) => h.gust)),
          sector: modalSector(peak),
+         directionSplit: window.filter(
+            (h) => h.tier < lastTier && directionSpread(h.dirs) > spot.conditions.directionSpreadDeg,
+         ),
       };
    });
 }

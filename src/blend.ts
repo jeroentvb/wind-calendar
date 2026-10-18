@@ -25,7 +25,7 @@ export function blend(fc: SpotForecast, tiers: readonly Tier[]): Hour[] {
    const out: Hour[] = [];
 
    fc.times.forEach((time, i) => {
-      for (const tier of tiers) {
+      for (const [tierIndex, tier] of tiers.entries()) {
          const members = tier.flatMap((ref) => {
             const s = fc.models[ref.id];
             if (!s) return [];
@@ -61,6 +61,8 @@ export function blend(fc: SpotForecast, tiers: readonly Tier[]): Hour[] {
             temp: mean((m) => m.temp),
             thunder,
             models: members.map((m) => m.label),
+            dirs: members.map((m) => m.dir),
+            tier: tierIndex,
          });
          return;
       }

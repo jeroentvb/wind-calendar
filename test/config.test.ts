@@ -40,6 +40,7 @@ test('spot overrides replace global values, rest falls through', () => {
       minDurationHours: 2,
       minTempC: 5,
       peakToleranceKn: 3,
+      directionSpreadDeg: 45,
    });
    expect(c.spots[1]!.conditions.minWindKn).toBe(16);
 });

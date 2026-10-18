@@ -78,3 +78,32 @@ describe('text', () => {
       expect(eventDescription(e!, 'UTC')).toContain('Models: icon_d2, harmonie, ecmwf_ifs');
    });
 });
+
+describe('direction disagreement', () => {
+   const twoTiers = spot('A', 1, { models: [[{ id: 'a', weight: 1 }], [{ id: 'b', weight: 1 }]] });
+   const split = (dirs: number[], tier: number) =>
+      hours([20, 20, 20], T0, (i) => ({ models: ['ICON-EU', 'ARPEGE'], dirs: i === 1 ? dirs : [270, 270], tier }));
+
+   test('flags hours where models of a short or medium range tier are too far apart', () => {
+      const [c] = candidatesForSpot(twoTiers, split([180, 240], 0), allDay);
+      expect(c!.directionSplit.map((h) => h.time)).toEqual([T0 + H]);
+      const d = eventDescription({ ...c!, alsoGood: [] }, 'UTC');
+      expect(d).toContain('⚠️ Models disagree on wind direction (more than 45° apart)');
+      expect(d).toContain('09:00 ICON-EU S, ARPEGE WSW');
+   });
+
+   test('a spread at the tolerance is not flagged', () => {
+      expect(candidatesForSpot(twoTiers, split([225, 270], 0), allDay)[0]!.directionSplit).toEqual([]);
+   });
+
+   test('the last (long range) tier is never flagged', () => {
+      const [c] = candidatesForSpot(twoTiers, split([180, 240], 1), allDay);
+      expect(c!.directionSplit).toEqual([]);
+      expect(eventDescription({ ...c!, alsoGood: [] }, 'UTC')).not.toContain('disagree');
+   });
+
+   test('the tolerance comes from the spot conditions', () => {
+      const loose = { ...twoTiers, conditions: { ...twoTiers.conditions, directionSpreadDeg: 90 } };
+      expect(candidatesForSpot(loose, split([180, 240], 0), allDay)[0]!.directionSplit).toEqual([]);
+   });
+});

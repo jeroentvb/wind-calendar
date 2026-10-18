@@ -12,12 +12,14 @@ const conditionFields = {
    minDurationHours: z.int().min(1),
    minTempC: z.number(),
    peakToleranceKn: knots,
+   directionSpreadDeg: z.number().min(0).max(180),
 };
 
 const GlobalConditions = z.strictObject({
    ...conditionFields,
    maxWindKn: conditionFields.maxWindKn.optional().transform((v) => v ?? null),
    peakToleranceKn: conditionFields.peakToleranceKn.optional().transform((v) => v ?? 3),
+   directionSpreadDeg: conditionFields.directionSpreadDeg.optional().transform((v) => v ?? 45),
 });
 
 // Overrides carry no defaults, so absent fields fall through to the global settings.

@@ -20,6 +20,7 @@ conditions:
   minDurationHours: 2 # minimum consecutive good hours
   minTempC: 5
   peakToleranceKn: 3 # hours less than this far below the peak belong to the peak block
+  directionSpreadDeg: 45 # warn when models of a non-last tier point further apart than this
 
 # Forecast models as ordered tiers (see "Models" in the README).
 # For each hour the first tier that has data is used; models within a tier are averaged by

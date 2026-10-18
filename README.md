@@ -40,13 +40,14 @@ Copy `config.example.yml` to `config.yml` and adjust it. The config is read and 
 
 Global settings under `conditions`. Every spot can override any of them in its own `conditions` block; keys a spot leaves out fall back to the global value.
 
-| Key                | Default | Description                                                                                         |
-| ------------------ | ------- | --------------------------------------------------------------------------------------------------- |
-| `minWindKn`        | –       | Required. Minimum sustained wind (knots) for every hour in a window                                 |
-| `maxWindKn`        | `null`  | Maximum sustained wind (knots) per hour; `null` means no limit. Gusts are not checked               |
-| `minDurationHours` | –       | Required. Minimum number of consecutive good hours                                                  |
-| `minTempC`         | –       | Required. Minimum temperature (°C) for every hour                                                   |
-| `peakToleranceKn`  | `3`     | Hours less than this many knots below the peak belong to the peak block (the event's start and end) |
+| Key                  | Default | Description                                                                                          |
+| -------------------- | ------- | ---------------------------------------------------------------------------------------------------- |
+| `minWindKn`          | –       | Required. Minimum sustained wind (knots) for every hour in a window                                  |
+| `maxWindKn`          | `null`  | Maximum sustained wind (knots) per hour; `null` means no limit. Gusts are not checked                |
+| `minDurationHours`   | –       | Required. Minimum number of consecutive good hours                                                   |
+| `minTempC`           | –       | Required. Minimum temperature (°C) for every hour                                                    |
+| `peakToleranceKn`    | `3`     | Hours less than this many knots below the peak belong to the peak block (the event's start and end)  |
+| `directionSpreadDeg` | `45`    | Warn in the description when models of any tier but the last point further apart than this (degrees) |
 
 ### Models
 

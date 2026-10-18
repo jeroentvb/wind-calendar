@@ -107,3 +107,27 @@ test('lower tiers do not affect thunder while a higher tier has data', () => {
    );
    expect(hours.map((h) => h.thunder)).toEqual([false, false, true]);
 });
+
+test('records each model direction and the tier used', () => {
+   const hours = blend(
+      fc(
+         {
+            a: series(2, { wind: [20, null], dir: [180, null] }),
+            b: series(2, { wind: [20, null], dir: [240, null] }),
+            c: series(2, { wind: [10, 10] }),
+         },
+         2,
+      ),
+      [
+         [
+            { id: 'a', weight: 1 },
+            { id: 'b', weight: 1 },
+         ],
+         [{ id: 'c', weight: 1 }],
+      ],
+   );
+   expect(hours.map((h) => [h.dirs, h.tier])).toEqual([
+      [[180, 240], 0],
+      [[270], 1],
+   ]);
+});

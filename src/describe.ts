@@ -36,6 +36,14 @@ export function eventDescription(e: CalendarEvent, timeZone: string, updatedAt?:
       );
       lines.push('');
    }
+   if (e.directionSplit.length > 0) {
+      lines.push(`⚠️ Models disagree on wind direction (more than ${e.spot.conditions.directionSpreadDeg}° apart)`);
+      for (const h of e.directionSplit) {
+         const each = h.models.map((m, i) => `${m} ${toSector(h.dirs[i]!)}`).join(', ');
+         lines.push(`${clock(h.time, timeZone)} ${each}`);
+      }
+      lines.push('');
+   }
    lines.push(`Peak ${clock(e.peakStart, timeZone)}–${clock(e.peakEnd, timeZone)}`);
    lines.push('');
    lines.push('   Time   Wind Gust Dir');
