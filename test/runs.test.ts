@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import type { SpotConfig } from '../src/config.ts';
 import { parseRunResponse, type ModelSeries, type SpotForecast } from '../src/openmeteo.ts';
-import { RunCache } from '../src/runs.ts';
+import { RunCache, runCycle } from '../src/runs.ts';
 import { spot } from './helpers.ts';
 
 const H = 3600;
@@ -93,21 +93,56 @@ test('models without latestRuns are left alone and never requested', async () =>
    expect(windAt(cache.apply(s, forecast(s)), at(20))).toBe(10);
 });
 
-test('first refresh looks back 24 h; later ones only retry recent unknown hours and fetch each run once', async () => {
-   const runs: Record<number, [number, number]> = { [at(6)]: [120, 20] };
-   const { fetchImpl, calls } = api(runs);
+test('first refresh tries every hour of the last 24 h and fetches each run once', async () => {
+   const { fetchImpl, calls } = api({ [at(6)]: [120, 20] });
    const cache = new RunCache({ fetchImpl });
    await cache.refresh([iconEu], NOW);
    expect(calls.filter((c) => c.startsWith('probe'))).toHaveLength(25);
    expect(calls.filter((c) => c.startsWith('full'))).toEqual(['full 6']);
+});
+
+test('the run schedule is learned from the start times found', () => {
+   expect(runCycle([at(9), at(6), at(3), at(0)])).toEqual({ step: 3 * H, offset: 0 });
+   expect(runCycle([at(18) - 86400, at(6)])).toEqual({ step: 12 * H, offset: 6 * H });
+   expect(runCycle([at(9), at(6), at(4)])).toEqual({ step: H, offset: 0 });
+   expect(runCycle([at(6)])).toBeUndefined();
+});
+
+test('later refreshes only try recent hours that fit the learned schedule', async () => {
+   // Runs every 6 h; the 12Z run appears after the first refresh.
+   const runs: Record<number, [number, number]> = { [at(0)]: [120, 15], [at(6)]: [120, 20], [at(-6)]: [120, 10] };
+   const { fetchImpl, calls } = api(runs);
+   const cache = new RunCache({ fetchImpl });
+   await cache.refresh([iconEu], NOW);
+
+   calls.length = 0;
+   await cache.refresh([iconEu], NOW + H);
+   // 12 h back from 13Z, on the 6-hour schedule: only 12Z is unknown.
+   expect(calls).toEqual(['probe 12']);
 
    calls.length = 0;
    runs[at(12)] = [120, 22];
-   await cache.refresh([iconEu], NOW + H);
-   expect(calls.filter((c) => c.startsWith('full'))).toEqual(['full 12']);
-   // 13 hours from 13Z back to 01Z, minus the known 06Z run.
-   expect(calls.filter((c) => c.startsWith('probe'))).toHaveLength(12);
+   await cache.refresh([iconEu], NOW + 2 * H);
+   expect(calls).toEqual(['probe 12', 'full 12']);
    expect(windAt(cache.apply(iconEu, forecast()), at(20))).toBe(22);
+});
+
+test('the full look-back repeats after a day, picking up runs off the learned schedule', async () => {
+   const runs: Record<number, [number, number]> = { [at(0)]: [120, 15], [at(6)]: [120, 20] };
+   const { fetchImpl, calls } = api(runs);
+   const cache = new RunCache({ fetchImpl });
+   await cache.refresh([iconEu], NOW);
+   // 15Z does not fit the 6-hour schedule learned from 00Z and 06Z.
+   runs[at(15)] = [30, 25];
+
+   calls.length = 0;
+   await cache.refresh([iconEu], NOW + 5 * H);
+   expect(calls).not.toContain('probe 15');
+
+   calls.length = 0;
+   await cache.refresh([iconEu], NOW + 24 * H);
+   expect(calls.filter((c) => c.startsWith('probe'))).toHaveLength(25);
+   expect(calls).toContain('full 15');
 });
 
 test('one request per run covers every spot using the model', async () => {

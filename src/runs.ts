@@ -9,9 +9,9 @@ import {
 } from './openmeteo.ts';
 
 const HOUR = 3600;
-/** How far back the first refresh looks for runs, and how long fetched runs are kept. */
+/** How far back a full look-back tries every hour, how often it repeats, and how long fetched runs are kept. */
 const KEEP = 24 * HOUR;
-/** Later refreshes try every unknown hour this recent again: runs are published hours after they start. */
+/** In between, unknown run times this recent are tried again: runs are published hours after they start. */
 const RETRY = 12 * HOUR;
 
 interface Run {
@@ -26,20 +26,35 @@ export interface RunCacheOptions {
    log?: (msg: string) => void;
 }
 
+/**
+ * The schedule the run start times fit: their greatest common interval and its offset. Undefined
+ * with fewer than two runs, so every hour is tried.
+ */
+export function runCycle(inits: readonly number[]): { step: number; offset: number } | undefined {
+   if (inits.length < 2) return undefined;
+   const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+   const step = inits.slice(1).reduce((g, t) => gcd(g, Math.abs(t - inits[0]!)), 0);
+   if (step === 0) return undefined;
+   return { step, offset: ((inits[0]! % step) + step) % step };
+}
+
 const locationKey = (l: Location) => `${l.lat},${l.lon}`;
 const iso = (t: number) => new Date(t * 1000).toISOString().slice(0, 16) + 'Z';
 
 /**
  * Open-Meteo's forecast API does not always serve a model's newest run (ICON-EU falls back to the
  * 00/12 UTC run beyond the 30 h of its 03/09/15/21 UTC runs). For models with `latestRuns`, this finds
- * runs in the single-runs API by trying every hour (missing runs return 400, so no model's schedule
- * needs to be known), fetches each run once for all spots, and lets the newest run win per hour.
+ * runs in the single-runs API (missing runs return 400), fetches each run once for all spots, and lets
+ * the newest run win per hour.
+ *
+ * No model's schedule is hardcoded: a full look-back tries every hour of the last day, and in between
+ * only hours that fit the schedule learned from the runs found (every 3 h for ICON-EU) are tried.
  */
 export class RunCache {
    /** Per model id, newest first. */
    private runs = new Map<string, Run[]>();
-   /** Models whose first, 24 h look-back has completed. */
-   private lookedBack = new Set<string>();
+   /** Per model id, when its last full look-back completed. */
+   private lookedBack = new Map<string, number>();
    private readonly fetchImpl: typeof fetch;
    private readonly log: (msg: string) => void;
 
@@ -72,9 +87,12 @@ export class RunCache {
       const runs = (this.runs.get(id) ?? []).filter((r, i) => i === 0 || r.init >= now - KEEP);
       this.runs.set(id, runs);
       const latest = Math.floor(now / HOUR) * HOUR;
-      const from = latest - (this.lookedBack.has(id) ? RETRY : KEEP);
-      for (let init = latest; init >= from; init -= HOUR) {
+      const last = this.lookedBack.get(id);
+      const full = last === undefined || now - last >= KEEP;
+      const cycle = full ? undefined : runCycle(runs.map((r) => r.init));
+      for (let init = latest; init >= latest - (full ? KEEP : RETRY); init -= HOUR) {
          if (runs.some((r) => r.init === init)) continue;
+         if (cycle && (init - cycle.offset) % cycle.step !== 0) continue;
          if (!(await this.exists(id, locs[0]!, init))) continue;
          const parsed = parseRunResponse(await this.get(buildRunUrl(locs, id, init)), locs.length);
          const byLocation = new Map(
@@ -84,7 +102,7 @@ export class RunCache {
          runs.sort((a, b) => b.init - a.init);
          this.log(`fetched ${id} run ${iso(init)}`);
       }
-      this.lookedBack.add(id);
+      if (full) this.lookedBack.set(id, now);
    }
 
    private async exists(id: string, loc: Location, init: number): Promise<boolean> {

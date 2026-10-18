@@ -87,9 +87,9 @@ models:
   - { id: icon_global, name: ICON, resolutionKm: 13, latestRuns: true }
 ```
 
-The app then also reads the model from Open-Meteo's [Single Runs API](https://open-meteo.com/en/docs/single-runs-api). On every refresh it checks each hour of the last 12 (24 on startup) for a new run, fetches each new run once for all spots, and per hour uses the newest run that covers it. Hours no run covers, and any failure of the Single Runs API, fall back to the regular forecast data.
+The app then also reads the model from Open-Meteo's [Single Runs API](https://open-meteo.com/en/docs/single-runs-api). A run only appears hours after its start time, so the app keeps looking for runs that started recently. Once a day (and on startup) it checks every hour of the last 24 for a run, and learns the model's schedule from the runs it finds (every 3 hours for ICON-EU, every 6 for ICON global); on the other refreshes it only checks the recent start times that fit that schedule. Each new run is fetched once for all spots, and per hour the newest run that covers it is used. Hours no run covers, and any failure of the Single Runs API, fall back to the regular forecast data.
 
-So far this is only known to improve ICON-EU (`icon_eu`) and ICON global (`icon_global`); other models we checked (HARM-NL, ICON-D2, AROME-HD, UKV, ARPEGE, GFS, ECMWF) are already served from their newest run. It costs extra API calls: about a dozen small requests per model per refresh plus one larger request per new run, which with five spots and two models stays well within the free limit of 10,000 calls a day. The Single Runs API may pick a slightly different grid cell than the regular API.
+So far this is only known to improve ICON-EU (`icon_eu`) and ICON global (`icon_global`); other models we checked (HARM-NL, ICON-D2, AROME-HD, UKV, ARPEGE, GFS, ECMWF) are already served from their newest run. It costs extra API calls: a few small checks per refresh, about 25 per model for the daily look-back, and one larger request per new run. With five spots and ICON-EU plus ICON global that is roughly 150 extra calls a day on top of the regular ~650, well within the free limit of 10,000. The Single Runs API may pick a slightly different grid cell than the regular API.
 
 ### Spots
 
