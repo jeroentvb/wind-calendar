@@ -2,10 +2,15 @@ import { toSector } from './sectors.ts';
 import type { CalendarEvent, Candidate } from './select.ts';
 import type { Hour, Member } from './types.ts';
 
-/** 🔮 outlook, 💨 no high-resolution model in the peak (too far ahead), 🏄 otherwise. */
+/**
+ * 🔮 outlook, 💨 no high-resolution model in the peak (too far ahead), 🏄 otherwise.
+ * Non-outlook titles add ⚠️ when the description lists any warning.
+ */
 export function eventTitle(c: Candidate): string {
    const highRes = c.peak.some((h) => h.members.some((m) => m.highRes));
-   return `${c.outlook ? '🔮' : highRes ? '🏄' : '💨'} ${c.spot.name} ${Math.round(c.avgWind)}-${Math.round(c.avgGust)}kn ${c.sector}`;
+   const warned = c.directionSplit.length + c.windSplit.length + c.possibleThunder.length > 0;
+   const icon = c.outlook ? '🔮' : `${highRes ? '🏄' : '💨'}${warned ? '⚠️' : ''}`;
+   return `${icon} ${c.spot.name} ${Math.round(c.avgWind)}-${Math.round(c.avgGust)}kn ${c.sector}`;
 }
 
 function clock(epoch: number, timeZone: string): string {

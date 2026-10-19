@@ -114,6 +114,8 @@ describe('model disagreement and possible thunder', () => {
       ]);
       expect(c.directionSplit.map((h) => h.time)).toEqual([T0 + H]);
       expect(d).toContain('⚠️ Models disagree on wind direction\n09:00 HARM-NL SW, ICON NW\n');
+      expect(eventTitle(c)).toBe('🏄⚠️ A 20-28kn W');
+      expect(eventTitle({ ...c, outlook: { models: ['ICON'], of: 1 } })).toMatch(/^🔮 /);
    });
 
    test('a low-weight outlier does not count as disagreement', () => {
@@ -152,14 +154,16 @@ describe('model disagreement and possible thunder', () => {
       ]);
       expect(c.possibleThunder.map((h) => h.time)).toEqual([T0 + H]);
       expect(d).toContain('⛈️ Possible thunder\n09:00 GFS\n');
+      expect(eventTitle(c)).toMatch(/^🏄⚠️ /);
    });
 
    test('agreeing models give no warnings', () => {
-      const { d } = describeOne(a, [
+      const { c, d } = describeOne(a, [
          { name: 'HARM-NL', weight: 1, wind: 21, dir: 265 },
          { name: 'ICON', weight: 1, wind: 19, dir: 275 },
       ]);
       expect(d).not.toContain('⚠️');
       expect(d).not.toContain('⛈️');
+      expect(eventTitle(c)).not.toContain('⚠️');
    });
 });
