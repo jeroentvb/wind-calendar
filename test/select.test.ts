@@ -154,7 +154,7 @@ describe('model disagreement and possible thunder', () => {
       ]);
       expect(c.possibleThunder.map((h) => h.time)).toEqual([T0 + H]);
       expect(d).toContain('⛈️ Possible thunder\n09:00 GFS\n');
-      expect(eventTitle(c)).toMatch(/^🏄⚠️ /);
+      expect(eventTitle(c)).toMatch(/^🏄⛈️ /);
    });
 
    test('agreeing models give no warnings', () => {
@@ -165,5 +165,6 @@ describe('model disagreement and possible thunder', () => {
       expect(d).not.toContain('⚠️');
       expect(d).not.toContain('⛈️');
       expect(eventTitle(c)).not.toContain('⚠️');
+      expect(eventTitle(c)).not.toContain('⛈️');
    });
 });

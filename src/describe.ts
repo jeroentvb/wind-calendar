@@ -4,12 +4,13 @@ import type { Hour, Member } from './types.ts';
 
 /**
  * 🔮 outlook, 💨 no high-resolution model in the peak (too far ahead), 🏄 otherwise.
- * Non-outlook titles add ⚠️ when the description lists any warning.
+ * Non-outlook titles add ⚠️ when models disagree on direction or speed, and ⛈️ for possible thunder.
  */
 export function eventTitle(c: Candidate): string {
    const highRes = c.peak.some((h) => h.members.some((m) => m.highRes));
-   const warned = c.directionSplit.length + c.windSplit.length + c.possibleThunder.length > 0;
-   const icon = c.outlook ? '🔮' : `${highRes ? '🏄' : '💨'}${warned ? '⚠️' : ''}`;
+   const split = c.directionSplit.length + c.windSplit.length > 0;
+   const thunder = c.possibleThunder.length > 0;
+   const icon = c.outlook ? '🔮' : `${highRes ? '🏄' : '💨'}${split ? '⚠️' : ''}${thunder ? '⛈️' : ''}`;
    return `${icon} ${c.spot.name} ${Math.round(c.avgWind)}-${Math.round(c.avgGust)}kn ${c.sector}`;
 }
 
